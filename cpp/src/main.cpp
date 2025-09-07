@@ -222,8 +222,11 @@ int main(int argc, char* argv[]) {
         cxxopts::Options options("iPerfer", "iPerfer network measurement tool");
         options.add_options()
             ("s,server", "Run as server")
+            ("c,client", "Run as client")
+            ("h,host", "Server hostname", cxxopts::value<std::string>())
             ("p,port", "Port number", cxxopts::value<int>())
-            ("h,help", "Print usage");
+            ("t,time", "Duration in seconds", cxxopts::value<double>())
+            ("help", "Print usage");
 
         auto result = options.parse(argc, argv);
 
