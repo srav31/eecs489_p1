@@ -103,9 +103,18 @@ void run_server(int port) {
 
 }
 
-void run_client(const std::string& host, int port, int time) {
+void run_client(const std::string& host, int port, double time_sec) {
 
-    // Create socket
+    if(port < 1024 || port > 65535) {
+        spdlog::error("Error: port number must be in the range of [1024, 65535]");
+        return;
+    }
+
+    if(time_sec <= 0) {
+        spdlog::error("Error: time argument must be greater than 0");
+        return;
+    }
+
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if(sock < 0) {
         spdlog::error("Error: cannot create socket");
@@ -119,10 +128,9 @@ void run_client(const std::string& host, int port, int time) {
     if(inet_pton(AF_INET, host.c_str(), &server_addr.sin_addr) <= 0) {
         spdlog::error("Error: invalid address");
         close(sock);
-        exit(1);                            
+        exit(1);
     }
 
-    // Connect
     if(connect(sock, (sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
         spdlog::error("Error: cannot connect to server");
         close(sock);
@@ -131,39 +139,55 @@ void run_client(const std::string& host, int port, int time) {
 
     spdlog::info("Connected to server at {}:{}", host, port);
 
-    char buf[8192];
     char one = '1';
     char ack;
+    std::vector<double> rtts;
+    using clock = std::chrono::high_resolution_clock;
 
     // 8 1-byte packets
-    for(int i = 0; i < 8; i++) {
+    for(int i=0; i<8; i++) {
         if(send(sock, &one, 1, 0) != 1) {
             spdlog::error("Error: failed to send 1-byte packet");
             close(sock);
             exit(1);
         }
 
+        auto start = clock::now();
         if(recv(sock, &ack, 1, 0) <= 0) {
             spdlog::error("Error: failed to receive ACK");
             close(sock);
             exit(1);
         }
+
+        if(i < 7) {
+            if(recv(sock, &one, 1, 0) <= 0) {
+                spdlog::error("Error: failed to receive next RTT packet");
+                close(sock);
+                exit(1);
+            }
+            auto end = clock::now();
+            std::chrono::duration<double, std::milli> rtt = end - start;
+            rtts.push_back(rtt.count());
+        }
     }
 
-    // 80KB packets 
-    memset(buf, 'a', sizeof(buf));
-    using clock = std::chrono::high_resolution_clock;
-    auto start = clock::now();
+    const size_t CHUNK_SIZE = 81920; // 80KB
+    char buf[CHUNK_SIZE];
+    memset(buf, '\0', CHUNK_SIZE);
+
     long total_bytes = 0;
+    auto start_time = clock::now();
 
     while(true) {
         auto now = clock::now();
-        double elapsed = std::chrono::duration<double>(now - start).count();
-        if(elapsed >= time) {
+        double elapsed = std::chrono::duration<double>(now - start_time).count();
+
+        if(elapsed >= time_sec) {
             break;
         }
 
-        ssize_t sent = send(sock, buf, sizeof(buf), 0);
+        ssize_t sent = send(sock, buf, CHUNK_SIZE, 0);
+
         if(sent <= 0) {
             break;
         }
@@ -175,14 +199,23 @@ void run_client(const std::string& host, int port, int time) {
         }
     }
 
-    close(sock);
-    
+    auto end_time = clock::now();
+    double elapsed_sec = std::chrono::duration<double>(end_time - start_time).count();
     int sent_kb = total_bytes / 1000;
-    double rate_mbps = (total_bytes * 8.0) / (time * 1000000.0);
+    double rate_mbps = (total_bytes * 8.0) / (elapsed_sec * 1000000.0);
 
-    spdlog::info("Sent={} KB, Rate={:.3f} Mbps", sent_kb, rate_mbps);
+    int avg_rtt = 0;
 
+    if(!rtts.empty()) {
+        double sum = 0;
+        for(double r: rtts) sum += r;
+        avg_rtt = static_cast<int>(sum / rtts.size());
+    }
+
+    spdlog::info("Sent={} KB, Rate={:.3f} Mbps, RTT={}ms", sent_kb, rate_mbps, avg_rtt);
+    close(sock);
 }
+
 
 int main(int argc, char* argv[]) {
     try {
