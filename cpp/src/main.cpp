@@ -236,6 +236,8 @@ int main(int argc, char* argv[]) {
         }
 
         bool is_server = result.count("server") > 0;
+        bool is_client = result.count("client") > 0;
+
         if (!result.count("port")) {
             spdlog::error("Error: missing port number");
             return 1;
@@ -250,8 +252,7 @@ int main(int argc, char* argv[]) {
         if (is_server) {
             spdlog::info("iPerfer server started on port {}", port);
             run_server(port);
-        } else {
-            spdlog::info("To be implemented");
+        } else if(is_client) {
             if(!result.count("host") || !result.count("time")) {
                 spdlog::error("Error: missing required client arguments (-h <host>, -t <time>)");
                 return 1;
@@ -262,6 +263,9 @@ int main(int argc, char* argv[]) {
 
             spdlog::info("iPerfer client started, host={}, port={}, time={}s", host, port, time);
             run_client(host, port, time);
+        } else {
+            spdlog::error("Error: must specify either -s (server) or -c (client)");
+            return 1;
         }
 
     } catch (const std::exception& e) {
