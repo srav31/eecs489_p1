@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
             return 0;
         }
 
-        bool isServer = result.count("server") > 0;
+        bool is_server = result.count("server") > 0;
         if (!result.count("port")) {
             spdlog::error("Error: missing port number");
             return 1;
@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        if (isServer) {
+        if (is_server) {
             spdlog::info("iPerfer server started on port {}", port);
             // TODO: implement server logic
         } else {
@@ -37,10 +37,11 @@ int main(int argc, char* argv[]) {
             // TODO: implement client logic
         }
 
-    } catch (const cxxopts::OptionException& e) {
-        spdlog::error("Error parsing options: {}", e.what());
+    } catch (const std::exception& e) {
+        std::cerr << "Error parsing options: " << e.what() << std::endl;
         return 1;
     }
+    
 
     return 0;
 }
