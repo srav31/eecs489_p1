@@ -103,87 +103,6 @@ void run_server(int port) {
 
 }
 
-void run_client(const std::string& host, int port, int time) {
-
-    // Create socket
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if(sock < 0) {
-        spdlog::error("Error: cannot create socket");
-        exit(1);
-    }
-
-    sockaddr_in server_addr{};
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(port);
-
-    if(inet_pton(AF_INET, host.c_str(), &server_addr.sin_addr) <= 0) {
-        spdlog::error("Error: invalid address");
-        close(sock);
-        exit(1);                            
-    }
-
-    // Connect
-    if(connect(sock, (sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-        spdlog::error("Error: cannot connect to server");
-        close(sock);
-        exit(1);
-    }
-
-    spdlog::info("Connected to server at {}:{}", host, port);
-
-    char buf[8192];
-    char one = '1';
-    char ack;
-
-    // 8 1-byte packets
-    for(int i = 0; i < 8; i++) {
-        if(send(sock, &one, 1, 0) != 1) {
-            spdlog::error("Error: failed to send 1-byte packet");
-            close(sock);
-            exit(1);
-        }
-
-        if(recv(sock, &ack, 1, 0) <= 0) {
-            spdlog::error("Error: failed to receive ACK");
-            close(sock);
-            exit(1);
-        }
-    }
-
-    // 80KB packets 
-    memset(buf, 'a', sizeof(buf));
-    using clock = std::chrono::high_resolution_clock;
-    auto start = clock::now();
-    long total_bytes = 0;
-
-    while(true) {
-        auto now = clock::now();
-        double elapsed = std::chrono::duration<double>(now - start).count();
-        if(elapsed >= time) {
-            break;
-        }
-
-        ssize_t sent = send(sock, buf, sizeof(buf), 0);
-        if(sent <= 0) {
-            break;
-        }
-
-        total_bytes += sent;
-
-        if(recv(sock, &ack, 1, 0) <= 0) {
-            break;
-        }
-    }
-
-    close(sock);
-    
-    int sent_kb = total_bytes / 1000;
-    double rate_mbps = (total_bytes * 8.0) / (time * 1000000.0);
-
-    spdlog::info("Sent={} KB, Rate={:.3f} Mbps", sent_kb, rate_mbps);
-
-}
-
 int main(int argc, char* argv[]) {
     try {
         cxxopts::Options options("iPerfer", "iPerfer network measurement tool");
@@ -215,17 +134,8 @@ int main(int argc, char* argv[]) {
             spdlog::info("iPerfer server started on port {}", port);
             run_server(port);
         } else {
-            spdlog::info("To be implemented");
-            if(!result.count("host") || !result.count("time")) {
-                spdlog::error("Error: missing required client arguments (-h <host>, -t <time>)");
-                return 1;
-            }
-
-            std::string host = result["host"].as<std::string>();
-            int time = result["time"].as<int>();
-
-            spdlog::info("iPerfer client started, host={}, port={}, time={}s", host, port, time);
-            run_client(host, port, time);
+            spdlog::info("iPerfer client started on port {}", port);
+            // TODO: implement client logic
         }
 
     } catch (const std::exception& e) {
