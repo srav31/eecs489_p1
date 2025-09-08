@@ -12,7 +12,7 @@ void run_server(int port) {
     // Create socket
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if(server_fd < 0) {
-        spdlog::error("Error: cannot create socket");
+        // spdlog::error("Error: cannot create socket");
         exit(1);
     }
 
@@ -23,30 +23,30 @@ void run_server(int port) {
     server_addr.sin_port = htons(port);
 
     if(bind(server_fd, (sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-        spdlog::error("Error: cannot bind socket");
+        // spdlog::error("Error: cannot bind socket");
         close(server_fd);
         exit(1);
     }
 
     // Listen for connection
     if(listen(server_fd, 1) < 0) {
-        spdlog::error("Error: cannot listen on socket");
+        // spdlog::error("Error: cannot listen on socket");
         close(server_fd);
         exit(1);
     }
 
-    spdlog::info("iPerfer server has started");
+    // spdlog::info("iPerfer server has started");
 
     // Accept client
     sockaddr_in client_addr{};
     socklen_t client_len = sizeof(client_addr);
     int client_fd = accept(server_fd, (sockaddr*)&client_addr, &client_len);
     if(client_fd < 0) {
-        spdlog::error("Error: cannot accept client");
+        // spdlog::error("Error: cannot accept client");
         exit(1);
     }
 
-    spdlog::info("Client is connected");
+    // spdlog::info("Client is connected");
 
     // 8 1-byte packets with RTT measurement
     char buf[8192];
@@ -106,18 +106,18 @@ void run_server(int port) {
 void run_client(const std::string& host, int port, double time_sec) {
 
     if(port < 1024 || port > 65535) {
-        spdlog::error("Error: port number must be in the range of [1024, 65535]");
+        spdlog::error("Error: port number must be in the range of [1024, 65535]"); // keep
         return;
     }
 
     if(time_sec <= 0) {
-        spdlog::error("Error: time argument must be greater than 0");
+        spdlog::error("Error: time argument must be greater than 0"); // keep
         return;
     }
 
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if(sock < 0) {
-        spdlog::error("Error: cannot create socket");
+        // spdlog::error("Error: cannot create socket");
         exit(1);
     }
 
@@ -126,13 +126,13 @@ void run_client(const std::string& host, int port, double time_sec) {
     server_addr.sin_port = htons(port);
 
     if(inet_pton(AF_INET, host.c_str(), &server_addr.sin_addr) <= 0) {
-        spdlog::error("Error: invalid address");
+        // spdlog::error("Error: invalid address");
         close(sock);
         exit(1);
     }
 
     if(connect(sock, (sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-        spdlog::error("Error: cannot connect to server");
+        // spdlog::error("Error: cannot connect to server");
         close(sock);
         exit(1);
     }
@@ -147,21 +147,21 @@ void run_client(const std::string& host, int port, double time_sec) {
     // 8 1-byte packets
     for(int i=0; i<8; i++) {
         if(send(sock, &one, 1, 0) != 1) {
-            spdlog::error("Error: failed to send 1-byte packet");
+            // spdlog::error("Error: failed to send 1-byte packet");
             close(sock);
             exit(1);
         }
 
         auto start = clock::now();
         if(recv(sock, &ack, 1, 0) <= 0) {
-            spdlog::error("Error: failed to receive ACK");
+            // spdlog::error("Error: failed to receive ACK");
             close(sock);
             exit(1);
         }
 
         if(i < 7) {
             if(recv(sock, &one, 1, 0) <= 0) {
-                spdlog::error("Error: failed to receive next RTT packet");
+                // spdlog::error("Error: failed to receive next RTT packet");
                 close(sock);
                 exit(1);
             }
@@ -237,7 +237,7 @@ int main(int argc, char* argv[]) {
 
         // Check extra args
         if(!result.unmatched().empty()) {
-            spdlog::error("Error: extra arguments provided");
+            // spdlog::error("Error: extra arguments provided");
             return 1;
         }
 
@@ -246,23 +246,23 @@ int main(int argc, char* argv[]) {
 
         // Only -s or -c
         if(is_server == is_client) {
-            spdlog::error("Error: must specify either -s (server) or -c (client)");
+            // spdlog::error("Error: must specify either -s (server) or -c (client)");
             return 1;
         }
 
         if(!result.count("port")) {
-            spdlog::error("Error: missing port number");
+            // spdlog::error("Error: missing port number");
             return 1;
         }
 
         int port = result["port"].as<int>();
         if(port < 1024 || port > 65535) {
-            spdlog::error("Error: port number must be in the range of [1024, 65535]");
+            spdlog::error("Error: port number must be in the range of [1024, 65535]"); // keep
             return 1;
         }
 
         if(is_server) {
-            spdlog::info("iPerfer server started on port {}", port);
+            // spdlog::info("iPerfer server started on port {}", port);
             run_server(port);
         } else { // client
             if(!result.count("host") || !result.count("time")) {
@@ -274,7 +274,7 @@ int main(int argc, char* argv[]) {
             double time = result["time"].as<double>();
 
             if(time <= 0) {
-                spdlog::error("Error: time argument must be greater than 0");
+                spdlog::error("Error: time argument must be greater than 0"); // keep
                 return 1;
             }
 
@@ -283,7 +283,7 @@ int main(int argc, char* argv[]) {
         }
 
     } catch(const std::exception& e) {
-        std::cerr << "Error parsing options: " << e.what() << std::endl;
+        // std::cerr << "Error parsing options: " << e.what() << std::endl;
         return 1;
     }
 
