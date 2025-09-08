@@ -230,49 +230,62 @@ int main(int argc, char* argv[]) {
 
         auto result = options.parse(argc, argv);
 
-        if (result.count("help")) {
+        if(result.count("help")) {
             std::cout << options.help() << std::endl;
             return 0;
+        }
+
+        // Check extra args
+        if(!result.unmatched().empty()) {
+            spdlog::error("Error: extra arguments provided");
+            return 1;
         }
 
         bool is_server = result.count("server") > 0;
         bool is_client = result.count("client") > 0;
 
-        if (!result.count("port")) {
+        // Only -s or -c
+        if(is_server == is_client) {
+            spdlog::error("Error: must specify either -s (server) or -c (client)");
+            return 1;
+        }
+
+        if(!result.count("port")) {
             spdlog::error("Error: missing port number");
             return 1;
         }
 
         int port = result["port"].as<int>();
-        if (port < 1024 || port > 65535) {
+        if(port < 1024 || port > 65535) {
             spdlog::error("Error: port number must be in the range of [1024, 65535]");
             return 1;
         }
 
-        if (is_server) {
+        if(is_server) {
             spdlog::info("iPerfer server started on port {}", port);
             run_server(port);
-        } else if(is_client) {
+        } else { // client
             if(!result.count("host") || !result.count("time")) {
                 spdlog::error("Error: missing required client arguments (-h <host>, -t <time>)");
                 return 1;
             }
 
             std::string host = result["host"].as<std::string>();
-            int time = result["time"].as<int>();
+            double time = result["time"].as<double>();
+
+            if(time <= 0) {
+                spdlog::error("Error: time argument must be greater than 0");
+                return 1;
+            }
 
             spdlog::info("iPerfer client started, host={}, port={}, time={}s", host, port, time);
             run_client(host, port, time);
-        } else {
-            spdlog::error("Error: must specify either -s (server) or -c (client)");
-            return 1;
         }
 
-    } catch (const std::exception& e) {
+    } catch(const std::exception& e) {
         std::cerr << "Error parsing options: " << e.what() << std::endl;
         return 1;
     }
-    
 
     return 0;
 }
