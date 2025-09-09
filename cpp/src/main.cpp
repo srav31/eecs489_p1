@@ -71,35 +71,30 @@ void run_server(int port) {
     clck::time_point sent_time;
 
     for(int i = 0; i < 8; ++i) {
+        // receive 1-byte probe from client
         ssize_t n = recv(client_fd, &probe_buf, 1, 0);
         if(n <= 0) { 
-            // spdlog::info("Server: failed to recv probe {}", i); // DEBUG
             close(client_fd); 
             close(server_fd); 
             return; 
         }
-
-        if(rec_ack) {
-            auto recv_time = clck::now();
-            double ms = std::chrono::duration<double, std::milli>(recv_time - sent_time).count();
-            rtts_ms.push_back(ms);
-            // spdlog::info("Server: RTT measured={} ms", ms); // DEBUG
-        }
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // artificial delay
-
+    
+        auto send_time = clck::now();  // start timing before sending ACK
+    
+        // optional artificial delay for testing
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    
+        // send 1-byte ACK
         if(send(client_fd, &ack, 1, 0) != 1) { 
-            // spdlog::info("Server: failed to send ACK {}", i); // DEBUG
             close(client_fd); 
             close(server_fd); 
-            return;
+            return; 
         }
-
-        // spdlog::info("Server: sent ACK {}", i); // DEBUG
-
-        sent_time = clck::now();
-        rec_ack = true;
-    }
+    
+        auto recv_ack_time = clck::now();  // stop timing immediately after sending ACK
+        double ms = std::chrono::duration<double, std::milli>(recv_ack_time - send_time).count();
+        rtts_ms.push_back(ms);
+    }    
 
     const size_t CHUNK_SIZE = 80 * 1000; // 80KB
     char data_buf[CHUNK_SIZE];
