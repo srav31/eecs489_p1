@@ -85,6 +85,8 @@ void run_server(int port) {
             // spdlog::info("Server: RTT measured={} ms", ms); // DEBUG
         }
 
+        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // ARTIFICIAL DELAY
+
         if(send(client_fd, &ack, 1, 0) != 1) { 
             // spdlog::info("Server: failed to send ACK {}", i); // DEBUG
             close(client_fd); 
@@ -212,7 +214,7 @@ void run_client(const std::string& host, int port, double time_sec) {
     
         auto now = clck::now();
         double elapsed = std::chrono::duration<double>(now - start_time).count();
-        if(elapsed >= time_sec) {
+        if(elapsed > time_sec) { // should this be > or >=?
             break;
         }
     }
