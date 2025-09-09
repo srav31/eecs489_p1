@@ -11,6 +11,8 @@
 #include <chrono>
 #include <cmath>
 
+// test RTT time by putting delay on part 2 topology links
+
 using clck = std::chrono::high_resolution_clock;
 
 static inline int avg_last4_ms(const std::vector<double>& v) {
@@ -85,8 +87,6 @@ void run_server(int port) {
             // spdlog::info("Server: RTT measured={} ms", ms); // DEBUG
         }
 
-        // std::this_thread::sleep_for(std::chrono::milliseconds(10)); // ARTIFICIAL DELAY
-
         if(send(client_fd, &ack, 1, 0) != 1) { 
             // spdlog::info("Server: failed to send ACK {}", i); // DEBUG
             close(client_fd); 
@@ -106,7 +106,9 @@ void run_server(int port) {
     clck::time_point start_time, end_time;
 
     while(true) {
-        ssize_t n = recv(client_fd, data_buf, sizeof(data_buf), 0);
+        ssize_t n = recv(client_fd, data_buf, sizeof(data_buf), 0); // recv returns as soon as it gets any data
+        // do while loop
+        // easier - set flags in discussion slides
         if(n <= 0) {
             break;
         }
@@ -194,31 +196,47 @@ void run_client(const std::string& host, int port, double time_sec) {
         rtts_ms.push_back(ms);
     }
 
-    const size_t CHUNK_SIZE = 80 * 1024; // 80KB
+    const size_t CHUNK_SIZE = 80 * 1000; // 80KB
     char buf[CHUNK_SIZE];
     std::memset(buf, 0, CHUNK_SIZE);
 
     long total_bytes = 0;
     auto start_time = clck::now();
 
-    while(true) {
-        ssize_t sent = send(sock, buf, CHUNK_SIZE, 0);
-        if(sent <= 0) {
-            break;
-        }
-        total_bytes += sent;
+    const size_t CHUNK_SIZE = 80 * 1000; // 80KB
+    char buf[CHUNK_SIZE];
+    std::memset(buf, 0, CHUNK_SIZE);
     
+    long total_bytes = 0;
+    auto start_time = clck::now();
+    char ack;
+    
+    while(true) {
+        size_t bytes_sent_in_chunk = 0;
+    
+        // send the full CHUNK_SIZE, handling partial sends
+        do {
+            ssize_t sent = send(sock, buf + bytes_sent_in_chunk, CHUNK_SIZE - bytes_sent_in_chunk, 0);
+            if(sent <= 0) {
+                goto end_sending; // exit both loops on error
+            }
+            bytes_sent_in_chunk += sent;
+            total_bytes += sent;
+        } while(bytes_sent_in_chunk < CHUNK_SIZE);
+    
+        // wait for 1-byte ACK
         if(recv(sock, &ack, 1, 0) <= 0) {
             break;
         }
     
         auto now = clck::now();
         double elapsed = std::chrono::duration<double>(now - start_time).count();
-        if(elapsed > time_sec) { // should this be > or >=?
+        if(elapsed >= time_sec) { // stop when elapsed >= requested duration
             break;
         }
     }
     
+    end_sending:
 
     auto end_time = clck::now();
     double elapsed_sec = std::chrono::duration<double>(end_time - start_time).count();
