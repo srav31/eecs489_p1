@@ -100,25 +100,32 @@ void run_server(int port) {
         rec_ack = true;
     }
 
-    char data_buf[8192];
+    const size_t CHUNK_SIZE = 80 * 1000; // 80KB
+    char data_buf[CHUNK_SIZE];
     long total_bytes = 0;
     bool started = false;
     clck::time_point start_time, end_time;
 
     while(true) {
-        ssize_t n = recv(client_fd, data_buf, sizeof(data_buf), 0); // recv returns as soon as it gets any data
-        // do while loop
-        // easier - set flags in discussion slides
-        if(n <= 0) {
-            break;
-        }
+        size_t bytes_received_in_chunk = 0;
 
-        if(!started) { 
-            started = true; 
-            start_time = clck::now(); 
-        }
+        // receive a full CHUNK_SIZE, handling partial reads
+        do {
+            ssize_t n = recv(client_fd, data_buf + bytes_received_in_chunk, CHUNK_SIZE - bytes_received_in_chunk, 0);
+            if(n <= 0) {
+                goto end_receiving; // exit both loops on error or disconnect
+            }
+            bytes_received_in_chunk += n;
+            total_bytes += n;
 
-        total_bytes += n;
+            if(!started) {
+                started = true;
+                start_time = clck::now();
+            }
+        } while(bytes_received_in_chunk < CHUNK_SIZE);
+
+        // send 1-byte ACK after full chunk
+        char ack = 'A';
         if(send(client_fd, &ack, 1, 0) != 1) {
             break;
         }
@@ -126,8 +133,10 @@ void run_server(int port) {
         end_time = clck::now();
     }
 
-    if(!started) { 
-        end_time = clck::now(); 
+    end_receiving:
+
+    if(!started) {
+        end_time = clck::now();
         start_time = end_time;
     }
 
@@ -230,7 +239,6 @@ void run_client(const std::string& host, int port, double time_sec) {
 
     end_sending:
     
-
     auto end_time = clck::now();
     double elapsed_sec = std::chrono::duration<double>(end_time - start_time).count();
     int sent_kb = static_cast<int>(total_bytes / 1000); // KB (1000-based to match spec’s examples)
