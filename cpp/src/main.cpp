@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <chrono>
+#include <cmath>
 
 using clck = std::chrono::high_resolution_clock;
 
@@ -22,8 +23,9 @@ static inline int avg_last4_ms(const std::vector<double>& v) {
         sum += v[i];
     }
 
-    return static_cast<int>(sum / 4.0);
+    return static_cast<int>(std::round(sum / 4.0));
 }
+
 
 void run_server(int port) {
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -198,23 +200,23 @@ void run_client(const std::string& host, int port, double time_sec) {
     auto start_time = clck::now();
 
     while(true) {
+        ssize_t sent = send(sock, buf, CHUNK_SIZE, 0);
+        if(sent <= 0) {
+            break;
+        }
+        total_bytes += sent;
+    
+        if(recv(sock, &ack, 1, 0) <= 0) {
+            break;
+        }
+    
         auto now = clck::now();
         double elapsed = std::chrono::duration<double>(now - start_time).count();
         if(elapsed >= time_sec) {
             break;
         }
-
-        ssize_t sent = send(sock, buf, CHUNK_SIZE, 0);
-        if(sent <= 0) {
-            break;
-        }
-
-        total_bytes += sent;
-
-        if(recv(sock, &ack, 1, 0) <= 0) {
-            break;
-        }
     }
+    
 
     auto end_time = clck::now();
     double elapsed_sec = std::chrono::duration<double>(end_time - start_time).count();
