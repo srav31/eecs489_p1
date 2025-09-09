@@ -70,7 +70,7 @@ void run_server(int port) {
     for(int i = 0; i < 8; ++i) {
         ssize_t n = recv(client_fd, &probe_buf, 1, 0);
         if(n <= 0) { 
-            spdlog::info("Server: failed to recv probe {}", i); // DEBUG
+            // spdlog::info("Server: failed to recv probe {}", i); // DEBUG
             close(client_fd); 
             close(server_fd); 
             return; 
@@ -80,17 +80,17 @@ void run_server(int port) {
             auto recv_time = clck::now();
             double ms = std::chrono::duration<double, std::milli>(recv_time - sent_time).count();
             rtts_ms.push_back(ms);
-            spdlog::info("Server: RTT measured={} ms", ms); // DEBUG
+            // spdlog::info("Server: RTT measured={} ms", ms); // DEBUG
         }
 
         if(send(client_fd, &ack, 1, 0) != 1) { 
-            spdlog::info("Server: failed to send ACK {}", i); // DEBUG
+            // spdlog::info("Server: failed to send ACK {}", i); // DEBUG
             close(client_fd); 
             close(server_fd); 
             return;
         }
 
-        spdlog::info("Server: sent ACK {}", i); // DEBUG
+        // spdlog::info("Server: sent ACK {}", i); // DEBUG
 
         sent_time = clck::now();
         rec_ack = true;
