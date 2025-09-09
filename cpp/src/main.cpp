@@ -202,18 +202,11 @@ void run_client(const std::string& host, int port, double time_sec) {
 
     long total_bytes = 0;
     auto start_time = clck::now();
-
-    const size_t CHUNK_SIZE = 80 * 1000; // 80KB
-    char buf[CHUNK_SIZE];
-    std::memset(buf, 0, CHUNK_SIZE);
-    
-    long total_bytes = 0;
-    auto start_time = clck::now();
     char ack;
-    
+
     while(true) {
         size_t bytes_sent_in_chunk = 0;
-    
+
         // send the full CHUNK_SIZE, handling partial sends
         do {
             ssize_t sent = send(sock, buf + bytes_sent_in_chunk, CHUNK_SIZE - bytes_sent_in_chunk, 0);
@@ -223,20 +216,21 @@ void run_client(const std::string& host, int port, double time_sec) {
             bytes_sent_in_chunk += sent;
             total_bytes += sent;
         } while(bytes_sent_in_chunk < CHUNK_SIZE);
-    
+
         // wait for 1-byte ACK
         if(recv(sock, &ack, 1, 0) <= 0) {
             break;
         }
-    
+
         auto now = clck::now();
         double elapsed = std::chrono::duration<double>(now - start_time).count();
         if(elapsed >= time_sec) { // stop when elapsed >= requested duration
             break;
         }
     }
-    
+
     end_sending:
+    
 
     auto end_time = clck::now();
     double elapsed_sec = std::chrono::duration<double>(end_time - start_time).count();
