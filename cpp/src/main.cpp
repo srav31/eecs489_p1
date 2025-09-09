@@ -28,7 +28,6 @@ static inline int avg_last4_ms(const std::vector<double>& v) {
     return static_cast<int>(std::round(sum / 4.0));
 }
 
-
 void run_server(int port) {
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if(server_fd < 0) {
@@ -86,6 +85,8 @@ void run_server(int port) {
             rtts_ms.push_back(ms);
             // spdlog::info("Server: RTT measured={} ms", ms); // DEBUG
         }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(10)); // artificial delay
 
         if(send(client_fd, &ack, 1, 0) != 1) { 
             // spdlog::info("Server: failed to send ACK {}", i); // DEBUG
