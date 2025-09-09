@@ -88,6 +88,8 @@ void run_server(int port) {
             return; 
         }
     
+        std::this_thread::sleep_for(std::chrono::milliseconds(5)); // artificial delay
+
         auto recv_ack_time = clck::now();
         double ms = std::chrono::duration<double, std::milli>(recv_ack_time - send_time).count();
         rtts_ms.push_back(ms);
