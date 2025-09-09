@@ -202,7 +202,6 @@ void run_client(const std::string& host, int port, double time_sec) {
 
     long total_bytes = 0;
     auto start_time = clck::now();
-    char ack;
 
     while(true) {
         size_t bytes_sent_in_chunk = 0;
