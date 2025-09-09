@@ -87,6 +87,8 @@ void run_server(int port) {
             // spdlog::info("Server: RTT measured={} ms", ms); // DEBUG
         }
 
+        std::this_thread::sleep_for(std::chrono::milliseconds(1)); // ARTIFICIAL DELAY
+
         if(send(client_fd, &ack, 1, 0) != 1) { 
             // spdlog::info("Server: failed to send ACK {}", i); // DEBUG
             close(client_fd); 
