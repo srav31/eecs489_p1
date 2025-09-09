@@ -79,10 +79,7 @@ void run_server(int port) {
             return; 
         }
     
-        auto send_time = clck::now();  // start timing before sending ACK
-    
-        // optional artificial delay for testing
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        auto send_time = clck::now();
     
         // send 1-byte ACK
         if(send(client_fd, &ack, 1, 0) != 1) { 
@@ -91,7 +88,7 @@ void run_server(int port) {
             return; 
         }
     
-        auto recv_ack_time = clck::now();  // stop timing immediately after sending ACK
+        auto recv_ack_time = clck::now();
         double ms = std::chrono::duration<double, std::milli>(recv_ack_time - send_time).count();
         rtts_ms.push_back(ms);
     }    
@@ -102,32 +99,27 @@ void run_server(int port) {
     bool started = false;
     clck::time_point start_time, end_time;
 
-    while(true) {
+    while (true) {
         size_t bytes_received_in_chunk = 0;
-
-        // receive a full CHUNK_SIZE, handling partial reads
+    
+        // Receive a full CHUNK_SIZE (handle partial receives)
         do {
-            ssize_t n = recv(client_fd, data_buf + bytes_received_in_chunk, CHUNK_SIZE - bytes_received_in_chunk, 0);
-            if(n <= 0) {
-                goto end_receiving; // exit both loops on error or disconnect
+            ssize_t n = recv(client_fd, data_buf + bytes_received_in_chunk,
+                             CHUNK_SIZE - bytes_received_in_chunk, 0);
+            if (n <= 0) {
+                goto end_receiving; // exit if error or client closed
             }
             bytes_received_in_chunk += n;
             total_bytes += n;
-
-            if(!started) {
+    
+            if (!started) {
                 started = true;
                 start_time = clck::now();
             }
-        } while(bytes_received_in_chunk < CHUNK_SIZE);
-
-        // send 1-byte ACK after full chunk
-        char ack = 'A';
-        if(send(client_fd, &ack, 1, 0) != 1) {
-            break;
-        }
-
+        } while (bytes_received_in_chunk < CHUNK_SIZE);
+    
         end_time = clck::now();
-    }
+    }    
 
     end_receiving:
 
@@ -208,30 +200,25 @@ void run_client(const std::string& host, int port, double time_sec) {
     long total_bytes = 0;
     auto start_time = clck::now();
 
-    while(true) {
+    while (true) {
         size_t bytes_sent_in_chunk = 0;
-
-        // send the full CHUNK_SIZE, handling partial sends
+    
         do {
-            ssize_t sent = send(sock, buf + bytes_sent_in_chunk, CHUNK_SIZE - bytes_sent_in_chunk, 0);
-            if(sent <= 0) {
-                goto end_sending; // exit both loops on error
+            ssize_t sent = send(sock, buf + bytes_sent_in_chunk,
+                                CHUNK_SIZE - bytes_sent_in_chunk, 0);
+            if (sent <= 0) {
+                goto end_sending; // exit if error
             }
             bytes_sent_in_chunk += sent;
             total_bytes += sent;
-        } while(bytes_sent_in_chunk < CHUNK_SIZE);
-
-        // wait for 1-byte ACK
-        if(recv(sock, &ack, 1, 0) <= 0) {
-            break;
-        }
-
+        } while (bytes_sent_in_chunk < CHUNK_SIZE);
+    
         auto now = clck::now();
         double elapsed = std::chrono::duration<double>(now - start_time).count();
-        if(elapsed >= time_sec) { // stop when elapsed >= requested duration
+        if (elapsed >= time_sec) {
             break;
         }
-    }
+    }    
 
     end_sending:
     
