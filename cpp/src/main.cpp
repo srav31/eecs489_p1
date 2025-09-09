@@ -79,6 +79,8 @@ void run_server(int port) {
         }
     
         auto send_time = clck::now();
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(50)); //artificial delay
     
         // send 1-byte ACK
         if(send(client_fd, &ack, 1, 0) != 1) { 
