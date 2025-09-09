@@ -100,36 +100,47 @@ void run_server(int port) {
         rec_ack = true;
     }
 
-    char data_buf[8192];
+    const size_t BUF_SIZE = 8192;
+    char data_buf[BUF_SIZE];
     long total_bytes = 0;
     bool started = false;
     clck::time_point start_time, end_time;
-
+    
     while(true) {
-        ssize_t n = recv(client_fd, data_buf, sizeof(data_buf), 0); // recv returns as soon as it gets any data
-        // do while loop
-        // easier - set flags in discussion slides
-        if(n <= 0) {
-            break;
-        }
-
-        if(!started) { 
-            started = true; 
-            start_time = clck::now(); 
-        }
-
-        total_bytes += n;
+        size_t bytes_received_in_chunk = 0;
+    
+        // read a full buffer, handling partial reads
+        do {
+            ssize_t n = recv(client_fd, data_buf + bytes_received_in_chunk, BUF_SIZE - bytes_received_in_chunk, 0);
+            if(n <= 0) {
+                goto end_receiving; // exit both loops on error or disconnect
+            }
+    
+            if(!started) {
+                started = true;
+                start_time = clck::now();
+            }
+    
+            bytes_received_in_chunk += n;
+            total_bytes += n;
+    
+        } while(bytes_received_in_chunk < BUF_SIZE);
+    
+        // send 1-byte ACK
         if(send(client_fd, &ack, 1, 0) != 1) {
             break;
         }
-
+    
         end_time = clck::now();
     }
-
-    if(!started) { 
-        end_time = clck::now(); 
+    
+    end_receiving:
+    
+    if(!started) {
+        end_time = clck::now();
         start_time = end_time;
     }
+    
 
     double duration_sec = std::chrono::duration<double>(end_time - start_time).count();
     int received_kb = static_cast<int>(total_bytes / 1000); // KB
