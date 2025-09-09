@@ -40,6 +40,14 @@ class AssignmentNetworks(Topo):
         self.addLink(s2, s3, bw=40, delay='10ms')
         self.addLink(s2, s4, bw=30, delay='30ms')
         self.addLink(s3, s5, bw=25, delay='5ms')
+
+        # Add a small delay from host to switch
+        self.addLink(h1, s1, bw=100, delay='1ms')
+        self.addLink(h2, s1, bw=100, delay='1ms')
+        self.addLink(h5, s1, bw=100, delay='1ms')
+        self.addLink(h3, s2, bw=100, delay='1ms')
+        self.addLink(h4, s3, bw=100, delay='1ms')
+
         
         
 if __name__ == '__main__':
