@@ -63,7 +63,7 @@ void run_server(int port) {
         }
     
         auto send_time = clck::now();
-        // std::this_thread::sleep_for(std::chrono::milliseconds(50)); //artificial delay
+        std::this_thread::sleep_for(std::chrono::milliseconds(50)); //artificial delay
     
         // send 1-byte ACK
         if(send(client_fd, &ack, 1, 0) != 1) { 
@@ -177,10 +177,12 @@ void run_client(const std::string& host, int port, double time_sec) {
             bytes_sent_in_chunk += sent;
             total_bytes += sent;
         } while(bytes_sent_in_chunk < CHUNK_SIZE);
-        // wait for 1-byte ACK
-        if(recv(sock, &ack, 1, 0) <= 0) {
-            break;
-        }
+
+        // // wait for 1-byte ACK
+        // if(recv(sock, &ack, 1, 0) <= 0) {
+        //     break;
+        // }
+
         auto now = clck::now();
         double elapsed = std::chrono::duration<double>(now - start_time).count();
         if(elapsed >= time_sec) { // stop when elapsed >= requested duration
