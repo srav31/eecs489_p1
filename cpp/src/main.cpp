@@ -101,29 +101,18 @@ void run_server(int port) {
     clck::time_point start_time, end_time;
 
     while(true) {
-        size_t bytes_received_in_chunk = 0;
-        do {
-            ssize_t n = recv(client_fd, data_buf + bytes_received_in_chunk,
-                             CHUNK_SIZE - bytes_received_in_chunk, 0);
-            if(n <= 0) {
-                goto end_receiving;
-            }
-            bytes_received_in_chunk += n;
-            total_bytes += n;
-            if(!started) {
-                started = true;
-                start_time = clck::now();
-            }
-        } while(bytes_received_in_chunk < CHUNK_SIZE);
+        ssize_t n = recv(client_fd, data_buf, CHUNK_SIZE, 0);
+        if(n <= 0) break;  // client closed or error
     
-        // send ACK
-        if(send(client_fd, &ack, 1, 0) != 1) {
-            break;
+        if(!started) {
+            started = true;
+            start_time = clck::now();
         }
     
-        // mark end_time AFTER ACK is sent
-        end_time = clck::now();
+        total_bytes += n;
+        end_time = clck::now();  // keep updating until last byte
     }
+    
 
     end_receiving:
 
@@ -203,29 +192,17 @@ void run_client(const std::string& host, int port, double time_sec) {
     auto start_time = clck::now();
 
     while(true) {
-        size_t bytes_sent_in_chunk = 0;
-        // send the full CHUNK_SIZE, handling partial sends
-        do {
-            ssize_t sent = send(sock, buf + bytes_sent_in_chunk, CHUNK_SIZE - bytes_sent_in_chunk, 0);
-            if(sent <= 0) {
-                goto end_sending; // exit both loops on error
-            }
-            bytes_sent_in_chunk += sent;
-            total_bytes += sent;
-        } while(bytes_sent_in_chunk < CHUNK_SIZE);
-
-        // wait for 1-byte ACK
-        // if(recv(sock, &ack, 1, 0) <= 0) {
-        //     break;
-        // }
-
+        ssize_t sent = send(sock, buf, CHUNK_SIZE, 0);
+        if(sent <= 0) break;
+    
+        total_bytes += sent;
+    
         auto now = clck::now();
         double elapsed = std::chrono::duration<double>(now - start_time).count();
-
-        if(elapsed >= time_sec) { // stop when elapsed >= requested duration
-            goto end_sending;
-        }
+    
+        if(elapsed >= time_sec) break;
     }
+    
 
     end_sending:
     
