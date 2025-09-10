@@ -85,7 +85,7 @@ void run_server(int port) {
         size_t bytes_received_in_chunk = 0;
         do {
             ssize_t n = recv(client_fd, data_buf + bytes_received_in_chunk,
-                             CHUNK_SIZE - bytes_received_in_chunk, 0);
+                             CHUNK_SIZE - bytes_received_in_chunk, MSG_WAITALL);
             if(n <= 0) {
                 goto end_receiving;
             }
