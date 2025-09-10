@@ -226,6 +226,11 @@ void run_client(const std::string& host, int port, double time_sec) {
             goto end_sending;
         }
     }
+
+    while (recv(sock, &ack, 1, MSG_DONTWAIT) > 0) {
+        // ignore ACKs, just empty the buffer
+    }
+
     end_sending:
     
     auto end_time = clck::now();
