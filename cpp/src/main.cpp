@@ -166,7 +166,6 @@ void run_client(const std::string& host, int port, double time_sec) {
     std::memset(buf, 0, CHUNK_SIZE);
     long total_bytes = 0;
     auto start_time = clck::now();
-    auto start_time = clck::now();
     while(true) {
         auto now = clck::now();
         double elapsed = std::chrono::duration<double>(now - start_time).count();
