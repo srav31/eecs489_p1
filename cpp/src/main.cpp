@@ -215,9 +215,9 @@ void run_client(const std::string& host, int port, double time_sec) {
         } while(bytes_sent_in_chunk < CHUNK_SIZE);
 
         // wait for 1-byte ACK
-        // if(recv(sock, &ack, 1, 0) <= 0) {
-        //     break;
-        // }
+        if(recv(sock, &ack, 1, 0) <= 0) {
+            break;
+        }
 
         auto now = clck::now();
         double elapsed = std::chrono::duration<double>(now - start_time).count();
