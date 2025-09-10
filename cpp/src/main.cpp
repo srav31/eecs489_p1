@@ -175,7 +175,6 @@ void run_client(const std::string& host, int port, double time_sec) {
         
         // Send the full 80 KB chunk
         size_t bytes_sent_in_chunk = 0;
-        total_bytes = 0;
         do {
             ssize_t sent = send(sock, buf + bytes_sent_in_chunk, CHUNK_SIZE - bytes_sent_in_chunk, 0);
             if(sent <= 0) {
