@@ -79,37 +79,27 @@ void run_server(int port) {
     const size_t CHUNK_SIZE = 80 * 1000; // 80KB
     char data_buf[CHUNK_SIZE];
     long total_bytes = 0;
-    bool started = false;
     clck::time_point start_time, end_time;
-    while(true) {
-        size_t bytes_received_in_chunk = 0;
-        do {
-            ssize_t n = recv(client_fd, data_buf + bytes_received_in_chunk,
-                             CHUNK_SIZE - bytes_received_in_chunk, MSG_WAITALL);
-            if(n <= 0) {
-                goto end_receiving;
-            }
-            bytes_received_in_chunk += n;
-            total_bytes += n;
-            if(!started) {
-                started = true;
-                start_time = clck::now();
-            }
-        } while(bytes_received_in_chunk < CHUNK_SIZE);
+    bool started = false;
     
-        // send ACK
-        if(send(client_fd, &ack, 1, 0) != 1) {
-            break;
+    while (true) {
+        ssize_t n = recv(client_fd, data_buf, CHUNK_SIZE, MSG_WAITALL);
+        if (n <= 0) break;   // client closed or error
+    
+        total_bytes += n;
+        if (!started) {
+            started = true;
+            start_time = clck::now();
         }
     
-        // mark end_time AFTER ACK is sent
+        // send 1-byte ACK
+        char ack = 'A';
+        if (send(client_fd, &ack, 1, 0) != 1) break;
+    
+        // mark end time
         end_time = clck::now();
     }
-    end_receiving:
-    if(!started) {
-        end_time = clck::now();
-        start_time = end_time;
-    }
+    
     double duration_sec = std::chrono::duration<double>(end_time - start_time).count();
     int received_kb = static_cast<int>(total_bytes / 1000); // KB
     double rate_mbps = duration_sec > 0.0 ? (total_bytes * 8.0) / (duration_sec * 1'000'000.0) : 0.0;
