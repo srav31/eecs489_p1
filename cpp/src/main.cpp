@@ -155,15 +155,11 @@ void run_client(const std::string& host, int port, double time_sec) {
     }
 
     int sock = socket(AF_INET, SOCK_STREAM, 0);
-
-    if(sock < 0) {
-        exit(1);
-    }
+    if(sock < 0) exit(1);
 
     sockaddr_in server_addr{};
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
-
     if(inet_pton(AF_INET, host.c_str(), &server_addr.sin_addr) <= 0) {
         close(sock);
         exit(1);
@@ -175,26 +171,18 @@ void run_client(const std::string& host, int port, double time_sec) {
     }
 
     spdlog::info("Connected to server at {}:{}", host, port);
-    char one = 'M';
+
+    char probe = 'M';
     char ack;
     std::vector<double> rtts_ms;
 
+    // measure RTT
     for(int i = 0; i < 8; ++i) {
         auto t0 = clck::now();
-
-        if(send(sock, &one, 1, 0) != 1) { 
-            close(sock); 
-            exit(1); 
-        }
-
-        if(recv(sock, &ack, 1, 0) <= 0) { 
-            close(sock); 
-            exit(1); 
-        }
-
+        if(send(sock, &probe, 1, 0) != 1) { close(sock); exit(1); }
+        if(recv(sock, &ack, 1, 0) <= 0) { close(sock); exit(1); }
         auto t1 = clck::now();
-        double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-        rtts_ms.push_back(ms);
+        rtts_ms.push_back(std::chrono::duration<double, std::milli>(t1 - t0).count());
     }
 
     const size_t CHUNK_SIZE = 80 * 1000; // 80KB
@@ -202,44 +190,40 @@ void run_client(const std::string& host, int port, double time_sec) {
     std::memset(buf, 0, CHUNK_SIZE);
 
     long total_bytes = 0;
-    auto start_time = clck::now();  // before sending the first byte
-    
+    auto start_time = clck::now(); // start measuring sending time
+    clck::time_point end_time;
+
     while(true) {
         size_t bytes_sent_in_chunk = 0;
         do {
             ssize_t sent = send(sock, buf + bytes_sent_in_chunk, CHUNK_SIZE - bytes_sent_in_chunk, 0);
-            if(sent <= 0) {
-                goto end_sending;
-            }
+            if(sent <= 0) goto end_sending;
             bytes_sent_in_chunk += sent;
             total_bytes += sent;
         } while(bytes_sent_in_chunk < CHUNK_SIZE);
-    
-        // record the time after sending the chunk
-        auto now = clck::now();
-        double elapsed = std::chrono::duration<double>(now - start_time).count();
-        if(elapsed >= time_sec) {
-            break;
-        }
-    
-        // still receive ACK so server counts all bytes
-        if(recv(sock, &ack, 1, 0) <= 0) {
-            break;
-        }
+
+        // record sending end_time immediately after sending the chunk
+        end_time = clck::now();
+
+        double elapsed = std::chrono::duration<double>(end_time - start_time).count();
+        if(elapsed >= time_sec) break;
+
+        // still receive ACK to let server count all bytes
+        if(recv(sock, &ack, 1, 0) <= 0) break;
     }
 
-    end_sending:
-    
-    // final end_time is when all chunks have been sent
-    auto end_time = clck::now();    
-    
+end_sending:
+
+    // final elapsed time is total sending time
     double elapsed_sec = std::chrono::duration<double>(end_time - start_time).count();
-    int sent_kb = static_cast<int>(total_bytes / 1000); // KB (1000-based to match spec’s examples)
+    int sent_kb = static_cast<int>(total_bytes / 1000); // KB
     double rate_mbps = elapsed_sec > 0.0 ? (total_bytes * 8.0) / (elapsed_sec * 1'000'000.0) : 0.0;
     int avg_rtt = avg_last4_ms(rtts_ms);
+
     spdlog::info("Sent={} KB, Rate={:.3f} Mbps, RTT={} ms", sent_kb, rate_mbps, avg_rtt);
     close(sock);
 }
+
 
 int main(int argc, char* argv[]) {
     try {
