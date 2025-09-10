@@ -164,35 +164,34 @@ void run_client(const std::string& host, int port, double time_sec) {
     const size_t CHUNK_SIZE = 80 * 1000; // 80KB
     char buf[CHUNK_SIZE];
     std::memset(buf, 0, CHUNK_SIZE);
-    auto start_time = clck::now();
     long total_bytes = 0;
-    
-    while (true) {
-        auto now = clck::now();
-        double elapsed = std::chrono::duration<double>(now - start_time).count();
-        if (elapsed >= time_sec) {
-            break; // Exit the loop if time is up
-        }
-    
-        // Send the full 80 KB chunk
+    auto start_time = clck::now();
+    while(true) {
         size_t bytes_sent_in_chunk = 0;
+        // send the full CHUNK_SIZE, handling partial sends
         do {
             ssize_t sent = send(sock, buf + bytes_sent_in_chunk, CHUNK_SIZE - bytes_sent_in_chunk, 0);
-            if (sent <= 0) {
-                goto end_sending;
+            if(sent <= 0) {
+                goto end_sending; // exit both loops on error
             }
             bytes_sent_in_chunk += sent;
-        } while (bytes_sent_in_chunk < CHUNK_SIZE);
-        
-        // Wait for 1-byte ACK
-        if (recv(sock, &ack, 1, 0) <= 0) {
+        } while(bytes_sent_in_chunk < CHUNK_SIZE);
+
+        total_bytes += CHUNK_SIZE;
+
+        // wait for 1-byte ACK
+        if(recv(sock, &ack, 1, 0) <= 0) {
             break;
         }
-    
-        // Update total_bytes after a full, successful chunk is sent and acknowledged
-        total_bytes += CHUNK_SIZE;
+        auto now = clck::now();
+        double elapsed = std::chrono::duration<double>(now - start_time).count();
+        if(elapsed >= time_sec) { // stop when elapsed >= requested duration
+            goto end_sending;
+        }
     }
-
+    while (recv(sock, &ack, 1, MSG_DONTWAIT) > 0) {
+        // ignore ACKs, just empty the buffer
+    }
     end_sending:
     
     auto end_time = clck::now();
