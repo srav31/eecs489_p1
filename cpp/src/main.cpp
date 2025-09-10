@@ -200,43 +200,41 @@ void run_client(const std::string& host, int port, double time_sec) {
     const size_t CHUNK_SIZE = 80 * 1000; // 80KB
     char buf[CHUNK_SIZE];
     std::memset(buf, 0, CHUNK_SIZE);
-    long total_bytes = 0;
-    auto start_time = clck::now();
 
+    long total_bytes = 0;
     auto start_time = clck::now();
     clck::time_point end_time;
-    long total_bytes = 0;
-    
+
+    // loop sending data
     while(true) {
         size_t bytes_sent_in_chunk = 0;
         do {
             ssize_t sent = send(sock, buf + bytes_sent_in_chunk, CHUNK_SIZE - bytes_sent_in_chunk, 0);
             if(sent <= 0) {
-                end_time = clck::now();
+                end_time = clck::now(); // just assign, don't redeclare
                 goto end_sending;
             }
             bytes_sent_in_chunk += sent;
             total_bytes += sent;
         } while(bytes_sent_in_chunk < CHUNK_SIZE);
-    
-        // stop if requested time has passed (before waiting for ACK)
+
+        // check elapsed time
         auto now = clck::now();
         double elapsed = std::chrono::duration<double>(now - start_time).count();
         if(elapsed >= time_sec) {
-            end_time = now;
+            end_time = now;  // just assign
             break;
         }
-    
-        // wait for 1-byte ACK
+
+        // wait for ACK
         if(recv(sock, &ack, 1, 0) <= 0) {
-            end_time = clck::now();
+            end_time = clck::now(); // just assign
             break;
         }
-    }        
+    }
 
     end_sending:
     
-    auto end_time = clck::now();
     double elapsed_sec = std::chrono::duration<double>(end_time - start_time).count();
     int sent_kb = static_cast<int>(total_bytes / 1000); // KB (1000-based to match spec’s examples)
     double rate_mbps = elapsed_sec > 0.0 ? (total_bytes * 8.0) / (elapsed_sec * 1'000'000.0) : 0.0;
