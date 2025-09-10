@@ -115,14 +115,14 @@ void run_server(int port) {
                 start_time = clck::now();
             }
         } while(bytes_received_in_chunk < CHUNK_SIZE);
-
-        // mark end_time BEFORE ACK is sent
-        end_time = clck::now();
     
         // send ACK
         if(send(client_fd, &ack, 1, 0) != 1) {
             break;
         }
+
+        // mark end_time AFTER ACK is sent
+        end_time = clck::now();
     
     }
 
@@ -203,30 +203,36 @@ void run_client(const std::string& host, int port, double time_sec) {
     long total_bytes = 0;
     auto start_time = clck::now();
 
+    auto start_time = clck::now();
+    clck::time_point end_time;
+    long total_bytes = 0;
+    
     while(true) {
         size_t bytes_sent_in_chunk = 0;
-        // send the full CHUNK_SIZE, handling partial sends
         do {
             ssize_t sent = send(sock, buf + bytes_sent_in_chunk, CHUNK_SIZE - bytes_sent_in_chunk, 0);
             if(sent <= 0) {
-                goto end_sending; // exit both loops on error
+                end_time = clck::now();
+                goto end_sending;
             }
             bytes_sent_in_chunk += sent;
             total_bytes += sent;
         } while(bytes_sent_in_chunk < CHUNK_SIZE);
-
-        // wait for 1-byte ACK
-        if(recv(sock, &ack, 1, 0) <= 0) {
-            break;
-        }
-
+    
+        // stop if requested time has passed (before waiting for ACK)
         auto now = clck::now();
         double elapsed = std::chrono::duration<double>(now - start_time).count();
-
-        if(elapsed >= time_sec) { // stop when elapsed >= requested duration
-            break; // goto end_sending;
+        if(elapsed >= time_sec) {
+            end_time = now;
+            break;
         }
-    }
+    
+        // wait for 1-byte ACK
+        if(recv(sock, &ack, 1, 0) <= 0) {
+            end_time = clck::now();
+            break;
+        }
+    }        
 
     end_sending:
     
