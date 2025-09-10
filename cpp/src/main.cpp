@@ -215,9 +215,9 @@ void run_client(const std::string& host, int port, double time_sec) {
         } while(bytes_sent_in_chunk < CHUNK_SIZE);
 
         // wait for 1-byte ACK
-        if(recv(sock, &ack, 1, 0) <= 0) {
-            break;
-        }
+        // if(recv(sock, &ack, 1, 0) <= 0) {
+        //     break;
+        // }
 
         auto now = clck::now();
         double elapsed = std::chrono::duration<double>(now - start_time).count();
@@ -225,10 +225,6 @@ void run_client(const std::string& host, int port, double time_sec) {
         if(elapsed >= time_sec) { // stop when elapsed >= requested duration
             goto end_sending;
         }
-    }
-
-    while (recv(sock, &ack, 1, MSG_DONTWAIT) > 0) {
-        // ignore ACKs, just empty the buffer
     }
 
     end_sending:
