@@ -91,7 +91,7 @@ void run_server(int port) {
             ssize_t n = recv(client_fd, data_buf + bytes_received_in_chunk,
                              CHUNK_SIZE - bytes_received_in_chunk, 0);
             if(n <= 0) {
-                goto end_receiving;
+                break;
             }
             bytes_received_in_chunk += n;
             total_bytes += n;
@@ -111,7 +111,7 @@ void run_server(int port) {
         // mark end_time AFTER ACK is sent
         end_time = clck::now();
     }
-    end_receiving:
+
     if(!started) {
         end_time = clck::now();
         start_time = end_time;
@@ -179,7 +179,7 @@ void run_client(const std::string& host, int port, double time_sec) {
         do {
             ssize_t sent = send(sock, buf + bytes_sent_in_chunk, CHUNK_SIZE - bytes_sent_in_chunk, 0);
             if(sent <= 0) {
-                goto end_sending; // exit both loops on error
+                break;
             }
             bytes_sent_in_chunk += sent;
             total_bytes += sent;
@@ -194,17 +194,16 @@ void run_client(const std::string& host, int port, double time_sec) {
         auto now = clck::now();
         double elapsed = std::chrono::duration<double>(now - start_time).count();
         if(elapsed >= time_sec) { // stop when elapsed >= requested duration
-            goto end_sending;
+            break;
         }
     }
     while (recv(sock, &ack, 1, MSG_DONTWAIT) > 0) {
         // ignore ACKs, just empty the buffer
     }
-    end_sending:
     
     auto end_time = clck::now();
     double elapsed_sec = std::chrono::duration<double>(end_time - start_time).count();
-    spdlog::info("Elapsed seconds: {}", elapsed_sec);
+    // spdlog::info("Elapsed seconds: {}", elapsed_sec);
     int sent_kb = static_cast<int>(total_bytes / 1000); // KB (1000-based to match spec’s examples)
     double rate_mbps = elapsed_sec > 0.0 ? (total_bytes * 8.0) / (elapsed_sec * 1'000'000.0 * iterations) : 0.0; // add times number of iterations here (elapsed_sec * 1'000'000.0) 
     int avg_rtt = avg_last4_ms(rtts_ms);
