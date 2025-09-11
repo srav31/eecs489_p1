@@ -84,6 +84,7 @@ void run_server(int port) {
     long total_bytes = 0;
     bool started = false;
     clck::time_point start_time, end_time;
+    int iterations = 0;
     while(true) {
         size_t bytes_received_in_chunk = 0;
         do {
@@ -99,6 +100,8 @@ void run_server(int port) {
                 start_time = clck::now();
             }
         } while(bytes_received_in_chunk < CHUNK_SIZE);
+
+        iterations++;
     
         // send ACK
         if(send(client_fd, &ack, 1, 0) != 1) {
@@ -115,7 +118,7 @@ void run_server(int port) {
     }
     double duration_sec = std::chrono::duration<double>(end_time - start_time).count();
     int received_kb = static_cast<int>(total_bytes / 1000); // KB
-    double rate_mbps = duration_sec > 0.0 ? (total_bytes * 8.0) / (duration_sec * 1'000'000.0) : 0.0;
+    double rate_mbps = duration_sec > 0.0 ? (total_bytes * 8.0) / (duration_sec * 1'000'000.0 * iterations) : 0.0;
     int avg_rtt = avg_last4_ms(rtts_ms);
     spdlog::info("Received={} KB, Rate={:.3f} Mbps, RTT={} ms", received_kb, rate_mbps, avg_rtt);
     close(client_fd);
@@ -169,6 +172,7 @@ void run_client(const std::string& host, int port, double time_sec) {
     std::memset(buf, 0, CHUNK_SIZE);
     long total_bytes = 0;
     auto start_time = clck::now();
+    int iterations = 0;
     while(true) {
         size_t bytes_sent_in_chunk = 0;
         // send the full CHUNK_SIZE, handling partial sends
@@ -180,6 +184,9 @@ void run_client(const std::string& host, int port, double time_sec) {
             bytes_sent_in_chunk += sent;
             total_bytes += sent;
         } while(bytes_sent_in_chunk < CHUNK_SIZE);
+
+        iterations++;
+
         // wait for 1-byte ACK
         if(recv(sock, &ack, 1, 0) <= 0) {
             break;
@@ -197,9 +204,9 @@ void run_client(const std::string& host, int port, double time_sec) {
     
     auto end_time = clck::now();
     double elapsed_sec = std::chrono::duration<double>(end_time - start_time).count();
-    spdlog::info("Elapsed seconds: ", elapsed_sec);
+    spdlog::info("Elapsed seconds: {}", elapsed_sec);
     int sent_kb = static_cast<int>(total_bytes / 1000); // KB (1000-based to match spec’s examples)
-    double rate_mbps = elapsed_sec > 0.0 ? (total_bytes * 8.0) / (elapsed_sec * 1'000'000.0) : 0.0;
+    double rate_mbps = elapsed_sec > 0.0 ? (total_bytes * 8.0) / (elapsed_sec * 1'000'000.0 * iterations) : 0.0; // add times number of iterations here (elapsed_sec * 1'000'000.0) 
     int avg_rtt = avg_last4_ms(rtts_ms);
     spdlog::info("Sent={} KB, Rate={:.3f} Mbps, RTT={} ms", sent_kb, rate_mbps, avg_rtt);
     close(sock);
